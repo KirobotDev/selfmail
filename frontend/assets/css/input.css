@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #12152a; }
+    ::-webkit-scrollbar-thumb { background: #252c50; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4452eb; }
+}
+
+@layer components {
+    .email-item {
+        @apply flex items-start gap-3 px-4 py-4 cursor-pointer transition-all duration-150;
+        @apply hover:bg-dark-700 border-l-2 border-l-transparent;
+    }
+    .email-item.active {
+        @apply bg-dark-700 border-l-brand-500;
+    }
+    .email-item.unread .email-subject {
+        @apply font-semibold text-white;
+    }
+    .email-item.unread .email-dot {
+        @apply block;
+    }
+    .email-dot {
+        @apply hidden w-2 h-2 bg-brand-400 rounded-full flex-shrink-0 mt-1.5;
+    }
+}

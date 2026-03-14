@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Créez une adresse email temporaire gratuite, anonyme et instantanée.">
+    <title>SelfMail — Temp mail</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="/logo.png">
+    <link rel="apple-touch-icon" href="/logo.png">
+    <script src="/socket.io/socket.io.js"></script>
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #f0f4f8;
+            color: #1a2035;
+            min-height: 100vh;
+        }
+
+        a { text-decoration: none; color: inherit; }
+
+        header {
+            background: #1a2035;
+            padding: 0 32px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .header-logo-icon {
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #0cc9a4, #08a88a);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .header-logo-icon svg {
+            width: 16px;
+            height: 16px;
+            color: #fff;
+        }
+
+        .header-logo-name {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.2px;
+        }
+
+        .header-right {
+            font-size: .75rem;
+            color: rgba(255,255,255,.4);
+        }
+
+        .hero {
+            background: #1a2035;
+            padding: 48px 20px 56px;
+            text-align: center;
+            position: relative;
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 1px;
+            background: rgba(255,255,255,.06);
+        }
+
+        .hero-title {
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 28px;
+            letter-spacing: -.2px;
+        }
+
+        .hero-email-wrap {
+            max-width: 560px;
+            margin: 0 auto;
+            background: rgba(255,255,255,.06);
+            border: 1px solid rgba(255,255,255,.1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            padding: 6px 6px 6px 20px;
+            gap: 8px;
+        }
+
+        #email-display {
+            flex: 1;
+            min-width: 0;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #fff;
+            letter-spacing: .2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            background: transparent;
+            border: none;
+            outline: none;
+            font-family: 'Poppins', monospace;
+        }
+
+        .hero-copy-btn {
+            flex-shrink: 0;
+            background: linear-gradient(135deg, #0cc9a4, #08a88a);
+            color: #fff;
+            border: none;
+            border-radius: 9px;
+            padding: 10px 22px;
+            font-size: .85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            transition: filter .18s, transform .15s;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .hero-copy-btn:hover { filter: brightness(1.1); }
+        .hero-copy-btn:active { transform: scale(.96); }
+        .hero-copy-btn svg { width: 18px; height: 18px; overflow: visible; }
+
+        .hero-sub {
+            max-width: 500px;
+            margin: 20px auto 0;
+            font-size: .8rem;
+            color: rgba(255,255,255,.35);
+            line-height: 1.7;
+        }
+
+        .hero-timer {
+            margin-top: 14px;
+            font-size: .78rem;
+            color: rgba(255,255,255,.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .hero-timer svg { width: 13px; height: 13px; }
+
+        #timer-display {
+            color: #f5b942;
+            font-weight: 600;
+        }
+
+        #timer-display.danger { color: #f87171; }
+
+        #conn-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-left: 16px;
+        }
+
+        #conn-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #f5b942;
+        }
+
+        #conn-dot.on  { background: #0cc9a4; }
+        #conn-dot.off { background: #f87171; }
+
+        #conn-label { color: rgba(255,255,255,.3); }
+
+        .actions-section {
+            background: #f0f4f8;
+            padding: 28px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .actions-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            max-width: 480px;
+            width: 100%;
+        }
+
+        .action-btn {
+            flex: 1 1 calc(50% - 6px);
+            min-width: 180px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 999px;
+            padding: 13px 20px;
+            font-size: .85rem;
+            font-weight: 500;
+            color: #374151;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            transition: all .18s;
+            box-shadow: 0 1px 4px rgba(0,0,0,.06);
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .action-btn svg { width: 17px; height: 17px; overflow: visible; }
+        .action-btn:hover { background: #f8fafd; border-color: #c7d2e0; box-shadow: 0 2px 10px rgba(0,0,0,.09); transform: translateY(-1px); }
+        .action-btn:active { transform: translateY(0) scale(.97); }
+
+        .action-btn.copy-btn  { color: #0cc9a4; border-color: rgba(12,201,164,.25); }
+        .action-btn.copy-btn:hover { background: rgba(12,201,164,.05); }
+        .action-btn.del-btn   { color: #ef4444; border-color: rgba(239,68,68,.2); }
+        .action-btn.del-btn:hover { background: rgba(239,68,68,.04); }
+
+        .main {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px 60px;
+        }
+
+        .inbox-card {
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 16px rgba(0,0,0,.07);
+        }
+
+        .inbox-header {
+            background: #1a2035;
+            display: grid;
+            grid-template-columns: 2fr 3fr 90px;
+            padding: 14px 24px;
+        }
+
+        .inbox-header span {
+            font-size: .7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: rgba(255,255,255,.5);
+        }
+
+        #empty-state {
+            padding: 72px 20px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            width: 64px;
+            height: 64px;
+            background: #f0f4f8;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+        }
+
+        .empty-icon svg { width: 26px; height: 26px; color: #94a3b8; }
+
+        .empty-title {
+            font-size: .95rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        .empty-sub {
+            font-size: .8rem;
+            color: #94a3b8;
+        }
+
+        #email-list {
+            display: none;
+        }
+
+        .email-row {
+            display: grid;
+            grid-template-columns: 2fr 3fr 90px;
+            align-items: center;
+            padding: 15px 24px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            transition: background .14s;
+            animation: rowIn .3s ease;
+        }
+
+        @keyframes rowIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .email-row:hover { background: #f8fafd; }
+        .email-row.active { background: #f0faf8; }
+        .email-row:last-child { border-bottom: none; }
+
+        .email-row.unread .row-subject { font-weight: 600; color: #1a2035; }
+
+        .row-sender, .row-subject {
+            font-size: .84rem;
+            color: #374151;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 12px;
+        }
+
+        .row-sender { color: #64748b; }
+
+        .row-unread-dot {
+            display: none;
+            width: 7px;
+            height: 7px;
+            background: #0cc9a4;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .email-row.unread .row-unread-dot { display: inline-block; }
+
+        .row-sender-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .row-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .btn-view {
+            background: #0cc9a4;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 5px 13px;
+            font-size: .75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: filter .15s;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .btn-view:hover { filter: brightness(1.1); }
+
+        .btn-del-row {
+            background: transparent;
+            border: none;
+            color: #cbd5e1;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color .15s, background .15s;
+        }
+
+        .btn-del-row svg { width: 14px; height: 14px; }
+        .btn-del-row:hover { color: #ef4444; background: rgba(239,68,68,.08); }
+
+        .detail-section {
+            background: #fff;
+            border-radius: 12px;
+            margin-top: 16px;
+            box-shadow: 0 2px 16px rgba(0,0,0,.07);
+            display: none;
+            overflow: hidden;
+            animation: fadeUp .25s ease;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .detail-bar {
+            background: #1a2035;
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .detail-bar-title {
+            font-size: .75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,.5);
+        }
+
+        .btn-close-detail {
+            background: rgba(255,255,255,.08);
+            border: none;
+            color: rgba(255,255,255,.6);
+            padding: 5px 14px;
+            border-radius: 6px;
+            font-size: .75rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background .15s;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .btn-close-detail svg { width: 13px; height: 13px; }
+        .btn-close-detail:hover { background: rgba(255,255,255,.14); }
+
+        .detail-meta {
+            padding: 20px 24px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        #detail-subject {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #1a2035;
+            margin-bottom: 10px;
+        }
+
+        .detail-meta-row {
+            display: flex;
+            gap: 10px;
+            font-size: .78rem;
+            margin-top: 4px;
+        }
+
+        .detail-meta-key { color: #94a3b8; width: 40px; flex-shrink: 0; }
+        .detail-meta-val { color: #374151; }
+
+        .detail-body {
+            padding: 24px;
+        }
+
+        #detail-iframe {
+            width: 100%;
+            min-height: 280px;
+            border: none;
+            border-radius: 8px;
+            background: #fff;
+            display: none;
+        }
+
+        #detail-text {
+            font-size: .85rem;
+            color: #374151;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            display: none;
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(0,0,0,.45);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s;
+        }
+
+        .modal-backdrop.open {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal {
+            background: #fff;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,.2);
+            transform: scale(.94) translateY(8px);
+            transition: transform .25s cubic-bezier(.16,1,.3,1);
+        }
+
+        .modal-backdrop.open .modal {
+            transform: scale(1) translateY(0);
+        }
+
+        .modal-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #1a2035;
+            margin-bottom: 10px;
+        }
+
+        .modal-desc {
+            font-size: .84rem;
+            color: #64748b;
+            line-height: 1.65;
+            margin-bottom: 24px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .btn-modal-cancel {
+            background: #f1f5f9;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: .84rem;
+            font-weight: 500;
+            color: #64748b;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            transition: background .15s;
+        }
+
+        .btn-modal-cancel:hover { background: #e2e8f0; }
+
+        .btn-modal-confirm {
+            background: linear-gradient(135deg, #0cc9a4, #08a88a);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: .84rem;
+            font-weight: 600;
+            color: #fff;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+            transition: filter .15s;
+        }
+
+        .btn-modal-confirm:hover { filter: brightness(1.08); }
+
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 200;
+            background: #1a2035;
+            color: #fff;
+            border-radius: 10px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            max-width: 300px;
+            box-shadow: 0 8px 32px rgba(0,0,0,.25);
+            transform: translateY(70px);
+            opacity: 0;
+            transition: transform .3s cubic-bezier(.16,1,.3,1), opacity .25s;
+            pointer-events: none;
+        }
+
+        #toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast-dot {
+            width: 8px;
+            height: 8px;
+            background: #0cc9a4;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .toast-body { flex: 1; min-width: 0; }
+
+        #toast-subject {
+            font-size: .82rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #toast-from {
+            font-size: .73rem;
+            color: rgba(255,255,255,.5);
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        @media (max-width: 600px) {
+            .inbox-header,
+            .email-row { grid-template-columns: 1fr auto; }
+            .inbox-header span:nth-child(2),
+            .row-subject { display: none; }
+            .actions-grid { flex-direction: column; }
+            .action-btn { min-width: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-logo">
+            <img src="/logo.png" alt="SelfMail" style="width:32px;height:32px;border-radius:8px;object-fit:cover;">
+            <span class="header-logo-name">SelfMail</span>
+        </div>
+        <span class="header-right">Email temporaire gratuit</span>
+    </header>
+
+    <div class="hero">
+        <h1 class="hero-title">Votre adresse email temporaire</h1>
+        <div class="hero-email-wrap">
+            <span id="email-display">Génération en cours...</span>
+            <button class="hero-copy-btn" id="btn-copy">
+                <svg id="icon-copy" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="overflow:visible">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                </svg>
+                <svg id="icon-check" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:none;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+                Copier
+            </button>
+        </div>
+        <p class="hero-sub">Protégez votre vraie adresse. Recevez des emails instantanément, sans inscription. Tout est supprimé automatiquement.</p>
+        <div class="hero-timer">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            Expire dans&nbsp;<span id="timer-display">10:00</span>
+            <span id="conn-wrap">
+                <span id="conn-dot"></span>
+                <span id="conn-label">Connexion...</span>
+            </span>
+        </div>
+    </div>
+
+    <div class="actions-section">
+        <div class="actions-grid">
+            <button class="action-btn copy-btn" id="btn-copy-2">
+                <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="overflow:visible">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                </svg>
+                Copier
+            </button>
+            <button class="action-btn" id="btn-refresh">
+                <svg id="icon-refresh" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                Actualiser
+            </button>
+            <button class="action-btn" id="btn-new">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                </svg>
+                Changer
+            </button>
+            <button class="action-btn del-btn" id="btn-delete-all">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+                Supprimer tout
+            </button>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="inbox-card">
+            <div class="inbox-header">
+                <span>Expéditeur</span>
+                <span>Objet</span>
+                <span style="text-align:right;">Action</span>
+            </div>
+
+            <div id="empty-state">
+                <div class="empty-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <p class="empty-title">Votre boîte est vide</p>
+                <p class="empty-sub">En attente d'emails entrants…</p>
+            </div>
+
+            <div id="email-list"></div>
+        </div>
+
+        <div class="detail-section" id="detail-section">
+            <div class="detail-bar">
+                <span class="detail-bar-title">Contenu du message</span>
+                <button class="btn-close-detail" id="btn-close-detail">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    Fermer
+                </button>
+            </div>
+            <div class="detail-meta">
+                <div id="detail-subject"></div>
+                <div class="detail-meta-row">
+                    <span class="detail-meta-key">De</span>
+                    <span class="detail-meta-val" id="detail-from"></span>
+                </div>
+                <div class="detail-meta-row">
+                    <span class="detail-meta-key">Date</span>
+                    <span class="detail-meta-val" id="detail-date"></span>
+                </div>
+            </div>
+            <div class="detail-body">
+                <iframe id="detail-iframe" sandbox="allow-same-origin"></iframe>
+                <pre id="detail-text"></pre>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-new" class="modal-backdrop">
+        <div class="modal">
+            <p class="modal-title">Changer d'adresse email ?</p>
+            <p class="modal-desc">L'adresse actuelle et tous ses emails seront <strong style="color:#ef4444;">supprimés</strong>. Une nouvelle adresse sera générée immédiatement.</p>
+            <div class="modal-actions">
+                <button class="btn-modal-cancel" id="modal-cancel">Annuler</button>
+                <button class="btn-modal-confirm" id="modal-confirm">Changer</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-delete-all" class="modal-backdrop">
+        <div class="modal">
+            <p class="modal-title">Supprimer tous les emails ?</p>
+            <p class="modal-desc">Tous les emails de votre boîte seront <strong style="color:#ef4444;">définitivement supprimés</strong>. Cette action est irréversible.</p>
+            <div class="modal-actions">
+                <button class="btn-modal-cancel" id="modal-del-cancel">Annuler</button>
+                <button class="btn-modal-confirm" id="modal-del-confirm" style="background:linear-gradient(135deg,#ef4444,#dc2626);">Supprimer</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast">
+        <span class="toast-dot"></span>
+        <div class="toast-body">
+            <div id="toast-subject">Nouvel email</div>
+            <div id="toast-from"></div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinning { animation: spin .7s linear infinite; }
+    </style>
+
+    <script>window.MAIL_DOMAIN = '<%= mailDomain %>';</script>
+    <script src="/js/app.js"></script>
+</body>
+</html>

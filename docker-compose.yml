@@ -1,0 +1,77 @@
+services:
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: tempmail_mailpit
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: 5000
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    volumes:
+      - mailpit_data:/data
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - tempmail_net
+
+  php-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tempmail_php
+    restart: unless-stopped
+    environment:
+      MAILPIT_API_URL: http://mailpit:8025
+      MAIL_DOMAIN: ${MAIL_DOMAIN:-tempmail.local}
+      HMAC_SECRET: ${HMAC_SECRET:-change_me_in_production_secret_key}
+      RATE_LIMIT_MAX: 20
+      RATE_LIMIT_WINDOW: 60
+    volumes:
+      - ./backend:/var/www/html
+      - php_ratelimit:/tmp/ratelimit
+    depends_on:
+      - mailpit
+    networks:
+      - tempmail_net
+
+  node-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: tempmail_node
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      PHP_API_URL: http://php-api
+      MAILPIT_API_URL: http://mailpit:8025
+      MAIL_DOMAIN: ${MAIL_DOMAIN:-tempmail.local}
+      NODE_ENV: production
+    depends_on:
+      - php-api
+      - mailpit
+    networks:
+      - tempmail_net
+
+  nginx:
+    image: nginx:alpine
+    container_name: tempmail_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - node-frontend
+      - php-api
+    networks:
+      - tempmail_net
+
+volumes:
+  mailpit_data:
+  php_ratelimit:
+
+networks:
+  tempmail_net:
+    driver: bridge
