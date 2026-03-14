@@ -145,7 +145,6 @@ Invoke-WebRequest -Uri "http://localhost:8025/api/v1/send" -Method POST -Content
 
 ## Sécurité
 
-- ✅ Manipulation DOM via `textContent` et `createElement` uniquement
 - ✅ Emails HTML affichés dans un `iframe` sandboxé (scripts bloqués)
 - ✅ Tokens HMAC-SHA256 avec TTL 1h
 - ✅ Rate limiting par IP côté PHP
