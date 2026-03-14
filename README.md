@@ -145,7 +145,7 @@ Invoke-WebRequest -Uri "http://localhost:8025/api/v1/send" -Method POST -Content
 
 ## Sécurité
 
-- ✅ Emails HTML affichés dans un `iframe` sandboxé (scripts bloqués)
+- ✅ Emails HTML affichés dans un `iframe` sandboxé
 - ✅ Tokens HMAC-SHA256 avec TTL 1h
 - ✅ Rate limiting par IP côté PHP
 - ✅ Pas de base de données — aucune donnée persistée côté serveur
